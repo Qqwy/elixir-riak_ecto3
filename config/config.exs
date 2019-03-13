@@ -28,3 +28,7 @@ use Mix.Config
 # here (which is why it is important to import them last).
 #
 #     import_config "#{Mix.env()}.exs"
+
+config :riak_ecto3, ecto_repos: [RiakEcto3Test.Repo]
+config :riak_ecto3, RiakEcto3Test.Repo,
+  database: "riak_test"
