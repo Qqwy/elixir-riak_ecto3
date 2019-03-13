@@ -42,7 +42,7 @@ defmodule RiakEcto3 do
   TODO Properly implement
   """
   def dumpers(primitive_type, ecto_type)
-  def dumpers(:string, type), do: [type]
+  def dumpers(:string, type), do: [type, &RiakEcto3.Dumpers.string/1]
   def dumpers(:id, type), do: [type, &RiakEcto3.Dumpers.integer/1]
   def dumpers(:integer, type), do: [type, &RiakEcto3.Dumpers.integer/1]
   def dumpers(:boolean, type), do: [type, &RiakEcto3.Dumpers.boolean/1]
@@ -66,7 +66,7 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter
   @doc """
-  TODO double-check implementation
+  TODO configurable Riak location
   """
   def init(config) do
     child_spec = %{id: Riak.Connection, start: {Riak.Connection, :start_link, []}}
@@ -78,7 +78,7 @@ defmodule RiakEcto3 do
   TODO Properly implement
   """
   def loaders(primitive_type, ecto_type)
-  def loaders(:string, type), do: [type]
+  def loaders(:string, type), do: [&RiakEcto.Loaders.string/1, type]
   def loaders(:id, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:integer, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:boolean, type), do: [&RiakEcto3.Loaders.boolean/1, type]
@@ -98,7 +98,9 @@ defmodule RiakEcto3 do
     result = Riak.find(meta.pid, repo.config[:database], source, raw_id)
     case result do
       {:error, problem} -> raise ArgumentError, "Riak error: #{problem}"
-      struct_or_nil -> struct_or_nil
+      nil -> nil
+      riak_map ->
+        repo.load(schema_module, load_riak_map(riak_map))
     end
   end
 
@@ -110,5 +112,46 @@ defmodule RiakEcto3 do
     else _ ->
       :error
     end
+  end
+
+  defp load_riak_map(riak_map) do
+    riak_map
+    |> Riak.CRDT.Map.value
+    |> Enum.map(fn {{key, value_type}, riak_value} ->
+      value = case value_type do
+                :register -> riak_value # String
+                :counter -> riak_value # TODO
+                :flag -> riak_value # TODO
+                :map -> raise "Not Implemented"
+              end
+      {:String.to_existing_atom(key), value}
+    end)
+    |> Enum.into(%{})
+  end
+
+  def dump(struct) do
+    build_riak_map(struct)
+  end
+
+  defp build_riak_map(struct = %schema_module{}) do
+    struct
+    |> Map.from_struct
+    |> Map.to_list
+    |> Enum.map(fn {key, value} ->
+      type = schema_module.__schema__(:type, key)
+      {key, type, value}
+    end)
+    |> Enum.reject(fn {key, type, _} ->
+      type == nil or key == :id  # TODO properly handle configured primary key name
+    end)
+    |> IO.inspect
+    |> Enum.map(fn {key, type, value} ->
+      {:ok, riak_value} = Ecto.Type.adapter_dump(__MODULE__, type, value)
+      {Atom.to_string(key), riak_value}
+    end)
+    |> IO.inspect
+    |> Enum.reduce(Riak.CRDT.Map.new, fn {key, value}, riak_map ->
+      Riak.CRDT.Map.put(riak_map, key, value)
+    end)
   end
 end
