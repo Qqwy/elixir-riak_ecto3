@@ -78,10 +78,18 @@ defmodule RiakEcto3 do
 
   def get(meta, schema_module, id, opts) do
     source = schema_module.__schema__(:source)
+    with {:ok, raw_id} = dump_primary_key(schema_module, id) do
+      Riak.find(meta.pid, source, raw_id)
+    end
+  end
+
+  defp dump_primary_key(schema_module, value) do
     [primary_key | _] = schema_module.__schema__(:primary_key)
     raw_id_type = schema_module.__schema__(:type, primary_key)
-    with {:ok, raw_id} <-  Ecto.Type.adapter_dump(__MODULE__, raw_id_type, id) do
-      Riak.find(meta.pid, source, raw_id)
+    with {:ok, raw_id} <-  Ecto.Type.adapter_dump(__MODULE__, raw_id_type, value) do
+      {:ok, raw_id}
+    else _ ->
+      :error
     end
   end
 end
