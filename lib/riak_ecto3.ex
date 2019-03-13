@@ -2,6 +2,16 @@ defmodule RiakEcto3 do
   @moduledoc """
   Riak KV 2.0 adapter for Ecto 3.
   Works by mapping Ecto Schemas to Riak Map-CRDTs.
+
+  NOTE: To use, ensure the following has been executed on your Riak database:
+
+      riak-admin bucket-type create your_database_name '{"props":{"datatype":"map"}}'
+      riak-admin bucket-type activate your_database_name
+
+  Here, `your_database_name` refers to any name you'd like the bucket type
+  that RiakEcto3 will use to be called. This is the same name you should use
+  in your configuration.
+
   """
 
   @behaviour Ecto.Adapter
@@ -13,7 +23,7 @@ defmodule RiakEcto3 do
     quote do
       def get(schema_module, id, opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
-        adapter.get(meta, schema_module, id, opts)
+        adapter.get(__MODULE__, meta, schema_module, id, opts)
       end
     end
   end
@@ -76,10 +86,19 @@ defmodule RiakEcto3 do
   def loaders(:binary_id, type), do: [Ecto.UUID, type]
   def loaders(_primitive, type), do: [type]
 
-  def get(meta, schema_module, id, opts) do
+  @doc """
+  Implementation of Repo.get
+
+  Returns `nil` if nothing is found. Returns the structure if something was found.
+  Raises an ArgumentError using improperly.
+  """
+  def get(repo, meta, schema_module, id, opts) do
     source = schema_module.__schema__(:source)
-    with {:ok, raw_id} = dump_primary_key(schema_module, id) do
-      Riak.find(meta.pid, source, raw_id)
+    {:ok, raw_id} = dump_primary_key(schema_module, id)
+    result = Riak.find(meta.pid, repo.config[:database], source, raw_id)
+    case result do
+      {:error, problem} -> raise ArgumentError, "Riak error: #{problem}"
+      struct_or_nil -> struct_or_nil
     end
   end
 

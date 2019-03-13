@@ -32,3 +32,6 @@ use Mix.Config
 config :riak_ecto3, ecto_repos: [RiakEcto3Test.Repo]
 config :riak_ecto3, RiakEcto3Test.Repo,
   database: "riak_test"
+
+config :riak_ecto3, Repo,
+  database: "riak_test"
