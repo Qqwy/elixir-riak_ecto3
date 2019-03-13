@@ -11,10 +11,9 @@ defmodule RiakEcto3 do
     IO.puts "Before Compile of RiakEcto3"
 
     quote do
-      def get(struct_name, id, opts \\ []) do
+      def get(schema_module, id, opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
-        adapter.get(meta, struct_name, id, opts)
-        IO.puts "TODO: Implement Repo.get for Riak: (1) struct_name -> Riak bucket name. (2) id -> Riak key name!"
+        adapter.get(meta, schema_module, id, opts)
       end
     end
   end
@@ -34,11 +33,15 @@ defmodule RiakEcto3 do
   """
   def dumpers(primitive_type, ecto_type)
   def dumpers(:string, type), do: [type]
+  def dumpers(:id, type), do: [type, &RiakEcto3.Dumpers.integer/1]
   def dumpers(:integer, type), do: [type, &RiakEcto3.Dumpers.integer/1]
   def dumpers(:boolean, type), do: [type, &RiakEcto3.Dumpers.boolean/1]
   def dumpers(:float, type), do: [type, &RiakEcto3.Dumpers.float/1]
   def dumpers(:binary_id, type), do: [type, Ecto.UUID] # TODO is this correct?
-  def dumpers(_primitive, type), do: [type]
+  def dumpers(primitive, type) do
+    IO.inspect({primitive, type})
+    [type]
+  end
 
   @impl Ecto.Adapter
   @doc """
@@ -66,13 +69,19 @@ defmodule RiakEcto3 do
   """
   def loaders(primitive_type, ecto_type)
   def loaders(:string, type), do: [type]
+  def loaders(:id, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:integer, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:boolean, type), do: [&RiakEcto3.Loaders.boolean/1, type]
   def loaders(:float, type), do: [&RiakEcto3.Loaders.float/1, type]
   def loaders(:binary_id, type), do: [Ecto.UUID, type]
   def loaders(_primitive, type), do: [type]
 
-  def get(meta, struct_name, id, opts) do
-    Riak.find(meta.pid, struct_name, id)
+  def get(meta, schema_module, id, opts) do
+    source = schema_module.__schema__(:source)
+    [primary_key | _] = schema_module.__schema__(:primary_key)
+    raw_id_type = schema_module.__schema__(:type, primary_key)
+    with {:ok, raw_id} <-  Ecto.Type.adapter_dump(__MODULE__, raw_id_type, id) do
+      Riak.find(meta.pid, source, raw_id)
+    end
   end
 end
