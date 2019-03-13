@@ -27,7 +27,6 @@ defmodule RiakEcto3 do
       end
 
       def insert(struct_or_changeset, opts \\ []) do
-        IO.inspect("NOTE: Only working with structs right now (and not changesets)!")
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.insert(__MODULE__, meta, struct_or_changeset, opts)
       end
@@ -136,13 +135,12 @@ defmodule RiakEcto3 do
     |> Enum.into(%{})
   end
 
-  def dump(struct) do
-    build_riak_map(struct)
+  def dump(struct = %schema_module{}) do
+    build_riak_map(schema_module, Map.from_struct(struct))
   end
 
-  defp build_riak_map(struct = %schema_module{}) do
-    struct
-    |> Map.from_struct
+  defp build_riak_map(schema_module, map = %{}) do
+    map
     |> Map.to_list
     |> Enum.map(fn {key, value} ->
       type = schema_module.__schema__(:type, key)
@@ -169,13 +167,27 @@ defmodule RiakEcto3 do
   (Changeset support is TODO)
   """
   def insert(repo, meta, struct_or_changeset, opts)
-    def insert(repo, meta, struct = %schema_module{}, opts) do
-    IO.inspect({repo, meta, struct, schema_module, opts})
+  def insert(repo, meta, %Ecto.Changeset{data: struct = %schema_module{}, changes: changes}, opts) do
+    riak_map = build_riak_map(schema_module, changes)
+
     source = schema_module.__schema__(:source)
-    riak_map = dump(struct)
     [primary_key | _] = schema_module.__schema__(:primary_key)
-    # riak_id = dump_primary_key(schema_module, Map.fetch!(struct, primary_key))
     riak_id = "#{Map.fetch!(struct, primary_key)}"
+
+    do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts)
+  end
+  def insert(repo, meta, struct = %schema_module{}, opts) do
+    riak_map = dump(struct)
+
+    source = schema_module.__schema__(:source)
+    [primary_key | _] = schema_module.__schema__(:primary_key)
+    riak_id = "#{Map.fetch!(struct, primary_key)}"
+
+    do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts)
+  end
+
+  defp do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts) do
+    IO.inspect({repo, meta, source, riak_map, riak_id, schema_module, opts})
     case Riak.update(meta.pid, riak_map, repo.config[:database], source, riak_id) do
       {:ok, riak_map} ->
         res = repo.load(schema_module, load_riak_map(riak_map))
