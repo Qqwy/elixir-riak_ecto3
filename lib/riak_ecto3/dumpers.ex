@@ -13,4 +13,8 @@ defmodule RiakEcto3.Dumpers do
   def string(string) do
     {:ok, Riak.CRDT.Register.new(string)}
   end
+
+  def id(id) do
+    {:ok, Integer.to_string(id)}
+  end
 end

@@ -25,6 +25,12 @@ defmodule RiakEcto3 do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.get(__MODULE__, meta, schema_module, id, opts)
       end
+
+      def insert(struct_or_changeset, opts \\ []) do
+        IO.inspect("NOTE: Only working with structs right now (and not changesets)!")
+        {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
+        adapter.insert(__MODULE__, meta, struct_or_changeset, opts)
+      end
     end
   end
 
@@ -94,8 +100,9 @@ defmodule RiakEcto3 do
   """
   def get(repo, meta, schema_module, id, opts) do
     source = schema_module.__schema__(:source)
-    {:ok, raw_id} = dump_primary_key(schema_module, id)
-    result = Riak.find(meta.pid, repo.config[:database], source, raw_id)
+    # {:ok, riak_id} = dump_primary_key(schema_module, id)
+    riak_id = "#{id}"
+    result = Riak.find(meta.pid, repo.config[:database], source, riak_id)
     case result do
       {:error, problem} -> raise ArgumentError, "Riak error: #{problem}"
       nil -> nil
@@ -106,9 +113,9 @@ defmodule RiakEcto3 do
 
   defp dump_primary_key(schema_module, value) do
     [primary_key | _] = schema_module.__schema__(:primary_key)
-    raw_id_type = schema_module.__schema__(:type, primary_key)
-    with {:ok, raw_id} <-  Ecto.Type.adapter_dump(__MODULE__, raw_id_type, value) do
-      {:ok, raw_id}
+    riak_id_type = schema_module.__schema__(:type, primary_key)
+    with {:ok, riak_id} <-  Ecto.Type.adapter_dump(__MODULE__, riak_id_type, value) do
+      {:ok, riak_id}
     else _ ->
       :error
     end
@@ -124,7 +131,7 @@ defmodule RiakEcto3 do
                 :flag -> riak_value # TODO
                 :map -> raise "Not Implemented"
               end
-      {:String.to_existing_atom(key), value}
+      {String.to_existing_atom(key), value}
     end)
     |> Enum.into(%{})
   end
@@ -142,7 +149,7 @@ defmodule RiakEcto3 do
       {key, type, value}
     end)
     |> Enum.reject(fn {key, type, _} ->
-      type == nil or key == :id  # TODO properly handle configured primary key name
+      type == nil
     end)
     |> IO.inspect
     |> Enum.map(fn {key, type, value} ->
@@ -153,5 +160,28 @@ defmodule RiakEcto3 do
     |> Enum.reduce(Riak.CRDT.Map.new, fn {key, value}, riak_map ->
       Riak.CRDT.Map.put(riak_map, key, value)
     end)
+  end
+
+  @doc """
+  Implementation of Repo.insert
+
+  For now, only works with plain structs.
+  (Changeset support is TODO)
+  """
+  def insert(repo, meta, struct_or_changeset, opts)
+    def insert(repo, meta, struct = %schema_module{}, opts) do
+    IO.inspect({repo, meta, struct, schema_module, opts})
+    source = schema_module.__schema__(:source)
+    riak_map = dump(struct)
+    [primary_key | _] = schema_module.__schema__(:primary_key)
+    # riak_id = dump_primary_key(schema_module, Map.fetch!(struct, primary_key))
+    riak_id = "#{Map.fetch!(struct, primary_key)}"
+    case Riak.update(meta.pid, riak_map, repo.config[:database], source, riak_id) do
+      {:ok, riak_map} ->
+        res = repo.load(schema_module, load_riak_map(riak_map))
+        {:ok, res}
+      other ->
+        other
+    end
   end
 end

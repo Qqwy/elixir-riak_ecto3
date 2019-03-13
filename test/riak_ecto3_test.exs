@@ -13,4 +13,6 @@ defmodule RiakEcto3Test do
       field :age, :integer
     end
   end
+
+  alice = %User{name: "Alice", age: 10, id: 33}
 end
