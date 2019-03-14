@@ -212,10 +212,19 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
-    IO.inspect(config)
-    {:ok, database} = Keyword.fetch(config, :database)
-    System.cmd("riak-admin", ["bucket-type", "create", database, "'{\"props\":{\"datatype\":\"map\"}}'"])
-    System.cmd("riak-admin", ["bucket-type", "activate", database])
+    with {:ok, database} <- Keyword.fetch(config, :database),
+    {:ok, pid} <- Riak.Connection.start_link,
+    {res1, 0} <- System.cmd("riak-admin", ["bucket-type", "create", database, ~s[{"props":{"datatype":"map"}}]]),
+    {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]) do
+      IO.puts res1
+      IO.puts res2
+      :ok
+    else
+      {command_error_string, 1} when is_binary(command_error_string) ->
+        {:error, command_error_string}
+      error ->
+        {:error, error}
+    end
   end
 
   @impl Ecto.Adapter.Storage
