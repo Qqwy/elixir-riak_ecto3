@@ -1,4 +1,7 @@
 defmodule RiakEcto3 do
+  @default_hostname "localhost"
+  @default_port 8087
+
   @moduledoc """
   Riak KV 2.0 adapter for Ecto 3.
   Works by mapping Ecto Schemas to Riak Map-CRDTs.
@@ -12,9 +15,16 @@ defmodule RiakEcto3 do
   that RiakEcto3 will use to be called. This is the same name you should use
   in your configuration.
 
+  ## Supported Configuration Options:
+
+  - `database:` Name of the `bucket_type` to use for storing all data of this Repo.
+     This should be a bucket_type that has the datatype set to `map`.
+  - `hostname:` The hostname to connect to. Defaults to `#{@default_hostname}`.
+  - `port:` The port to connect to. Defaults to `#{@default_port}`.
   """
 
   @behaviour Ecto.Adapter
+  @behaviour Ecto.Adapter.Storage
 
   @impl Ecto.Adapter
   defmacro __before_compile__(env) do
@@ -74,7 +84,9 @@ defmodule RiakEcto3 do
   TODO configurable Riak location
   """
   def init(config) do
-    child_spec = %{id: Riak.Connection, start: {Riak.Connection, :start_link, []}}
+    hostname = Keyword.get(config, :hostname, "localhost")
+    port = Keyword.get(config, :port, 8087)
+    child_spec = %{id: Riak.Connection, start: {Riak.Connection, :start_link, [hostname, port]}}
     {:ok, child_spec, %{}}
   end
 
@@ -101,6 +113,7 @@ defmodule RiakEcto3 do
     source = schema_module.__schema__(:source)
     # {:ok, riak_id} = dump_primary_key(schema_module, id)
     riak_id = "#{id}"
+    IO.inspect({meta.pid, repo.config[:database], source, riak_id})
     result = Riak.find(meta.pid, repo.config[:database], source, riak_id)
     case result do
       {:error, problem} -> raise ArgumentError, "Riak error: #{problem}"
@@ -195,5 +208,15 @@ defmodule RiakEcto3 do
       other ->
         other
     end
+  end
+
+  @impl Ecto.Adapter.Storage
+  def storage_up(config) do
+    System.cmd("riak-admin", ["bucket-type", "create", database, '{"props":{"datatype":"map"}}'])
+    System.cmd("riak-admin", ["bucket-type", "activate", database])
+  end
+
+  def storage_down(config) do
+    {:error, :unsupported_by_riak}
   end
 end
