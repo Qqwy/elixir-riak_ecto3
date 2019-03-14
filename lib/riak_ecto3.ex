@@ -212,10 +212,13 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
-    System.cmd("riak-admin", ["bucket-type", "create", database, '{"props":{"datatype":"map"}}'])
+    IO.inspect(config)
+    {:ok, database} = Keyword.fetch(config, :database)
+    System.cmd("riak-admin", ["bucket-type", "create", database, "'{\"props\":{\"datatype\":\"map\"}}'"])
     System.cmd("riak-admin", ["bucket-type", "activate", database])
   end
 
+  @impl Ecto.Adapter.Storage
   def storage_down(config) do
     {:error, :unsupported_by_riak}
   end
