@@ -3,6 +3,7 @@
   "ecto": {:hex, :ecto, "3.0.7", "44dda84ac6b17bbbdeb8ac5dfef08b7da253b37a453c34ab1a98de7f7e5fec7f", [:mix], [{:decimal, "~> 1.6", [hex: :decimal, repo: "hexpm", optional: false]}, {:jason, "~> 1.0", [hex: :jason, repo: "hexpm", optional: true]}, {:poison, "~> 2.2 or ~> 3.0", [hex: :poison, repo: "hexpm", optional: true]}], "hexpm"},
   "hamcrest": {:hex, :basho_hamcrest, "0.4.1", "fb7b2c92d252a1e9db936750b86089addaebeb8f87967fb4bbdda61e8863338e", [:make, :mix, :rebar3], [], "hexpm"},
   "pooler": {:hex, :pooler, "1.5.3", "898cd1fa301fc42d4a8ed598ce139b71ca85b54c16ab161152b5cc5fbdcfa1a8", [:rebar3], [], "hexpm"},
+  "progress_bar": {:hex, :progress_bar, "2.0.0", "447285f533b4b8717881fdb7160c7360c2f2ab57276f8904ce6d40482857e573", [:mix], [{:decimal, "~> 1.0", [hex: :decimal, repo: "hexpm", optional: false]}], "hexpm"},
   "riak": {:hex, :riak, "1.1.6", "e69c48ef5c19b98484ac9dc5ee84a414f676bdceb55ffd5fa9e0fbbad4842fb5", [:mix], [{:pooler, "~> 1.5.3", [hex: :pooler, repo: "hexpm", optional: false]}, {:riakc, "~> 2.5.3", [hex: :riakc, repo: "hexpm", optional: false]}], "hexpm"},
   "riak_pb": {:hex, :riak_pb, "2.3.2", "48ffbf66dbb3f136ab9a7134bac4e496754baa5ef58c4f50a61326736d996390", [:make, :mix, :rebar3], [{:hamcrest, "~> 0.4.1", [hex: :basho_hamcrest, repo: "hexpm", optional: false]}], "hexpm"},
   "riakc": {:hex, :riakc, "2.5.3", "6132d9e687a0dfd314b2b24c4594302ca8b55568a5d733c491d8fb6cd4004763", [:make, :mix, :rebar3], [{:riak_pb, "~> 2.3", [hex: :riak_pb, repo: "hexpm", optional: false]}], "hexpm"},

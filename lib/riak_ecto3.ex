@@ -265,6 +265,27 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter.Storage
   def storage_down(config) do
-    {:error, "Unfortunately, dropping a bucket_type is unsupported in Riak."}
+    with {:ok, database} <- Keyword.fetch(config, :database),
+         hostname = Keyword.get(config, :hostname, @default_hostname),
+           port = Keyword.get(config, :port, @default_port),
+         {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
+           buckets = Riak.Bucket.Type.list!(pid, database) do
+      for bucket <- buckets do
+        IO.puts "Flushing values in bucket `#{bucket}`"
+        keys = Riak.Bucket.keys!(pid, database, bucket)
+        n_keys = Enum.count(keys)
+
+        keys
+        |> Enum.with_index
+        |> Enum.each(fn {key, index} ->
+          IO.inspect("Deleting `#{inspect(key)}`")
+          Riak.delete(pid, database, bucket, key)
+          ProgressBar.render(index + 1, n_keys)
+        end)
+
+      end
+      IO.puts "NOTE: Riak does not support 'dropping' a bucket type (or buckets contained within), so it has only been emptied."
+      :ok
+    end
   end
 end

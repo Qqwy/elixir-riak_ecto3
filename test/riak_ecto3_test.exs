@@ -10,7 +10,7 @@ defmodule RiakEcto3Test do
     alice = %User{name: "Alice", age: 10, id: 33}
 
     assert Repo.get(User, "33") == nil
-    assert Repo.insert(alice) == {:ok, alice}
-    assert Repo.get(User, "33") == alice
+    assert {:ok, %User{name: "Alice", age: 10, id: 33}} = Repo.insert(alice)
+    assert %user{name: "Alice", age: 10, id: 33} = Repo.get(User, "33")
   end
 end

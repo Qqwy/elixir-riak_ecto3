@@ -24,9 +24,10 @@ defmodule RiakEcto3.MixProject do
   defp deps do
     [
       {:ecto, "~> 3.0"},
-      {:riak, "~> 1.0"}
+      {:riak, "~> 1.0"},
       # {:dep_from_hexpm, "~> 0.3.0"},
       # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
+      {:progress_bar, "~> 2.0", only: [:test]}
     ]
   end
 
@@ -37,7 +38,7 @@ defmodule RiakEcto3.MixProject do
   defp aliases do
     [
       # Ensures database is reset before tests are run
-      test: ["ecto.create -r RiakEcto3Test.Example.Repo", "test"]
+      test: ["ecto.create --quiet", "test", "ecto.drop --quiet"]
     ]
   end
 end
