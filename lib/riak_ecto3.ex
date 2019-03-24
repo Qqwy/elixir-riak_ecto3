@@ -61,6 +61,16 @@ defmodule RiakEcto3 do
 
       On success, will return the struct.
       On failure (if the struct does not exist within the Riak database), returns `nil`.
+
+      iex> alice = %User{name: "Alice", age: 10, id: 33}
+      iex> Repo.get(User, "33") == nil
+      true
+      iex> {:ok, %User{name: "Alice", age: 10, id: 33}} = Repo.insert(alice)
+      iex> %user{name: "Alice", age: 10, id: 33} = Repo.get(User, "33")
+      iex> {:ok, %User{name: "Alice", age: 10, id: 33}} = Repo.delete(alice)
+      iex> Repo.get(User, "33") == nil
+      true
+
       """
       def get(schema_module, id, opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
@@ -90,8 +100,38 @@ defmodule RiakEcto3 do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.delete(__MODULE__, meta, struct_or_changeset, opts)
       end
+
+      @doc """
+      Allows you to perform a raw SOLR query on a given Schema module.
+
+      See https://docs.riak.com/riak/kv/2.2.3/developing/usage/search/index.html
+      and https://docs.riak.com/riak/kv/2.2.3/developing/usage/searching-data-types.1.html#data-types-and-search-examples
+
+      for more information and syntax.
+
+      A query is prefixed to constrain it to the given schema module's bucket (in the database's bucket type).
+
+      The response of this will either be `{:error, problem}` or `{:ok, results}`
+      where `results` will be a list of maps.
+      Each of these maps has a `:meta`-key containing the raw SOLR result for that resource,
+      and a `:resource` key, which is a 0-arity function that will fetch the given resource from the repo when called.
+
+      Example:
+
+          iex> bob = %User{name: "Bob", id: 42, age: 41}
+          iex> {:ok, _} = Repo.insert(bob)
+          iex> :timer.sleep(1000)
+          iex> {:ok, results} = Repo.raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
+          iex> results |> Enum.map(fn elem -> elem.resource.() end) |> Enum.any?(fn user -> user.name == "Bob" end)
+          true
+      """
+      def raw_solr_query(schema_module, query, solr_opts \\ []) do
+        {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
+        adapter.raw_solr_query(__MODULE__, meta, schema_module, query, solr_opts)
+      end
     end
   end
+
 
   @impl Ecto.Adapter
   @doc """
@@ -283,20 +323,53 @@ defmodule RiakEcto3 do
     end
   end
 
+  def raw_solr_query(repo, meta, schema_module, query, solr_opts) do
+    require Logger
+
+    source = schema_module.__schema__(:source)
+    database = repo.config[:database]
+    compound_query = ~s[_yz_rt:"#{database}" AND _yz_rb:"#{source}" AND #{query}]
+    index = "#{database}_index"
+    case Riak.Search.query(meta.pid, index, compound_query, solr_opts) do
+      {:error, problem} ->
+        Logger.debug("Solr Query that was executed: #{compound_query}")
+        {:error, problem}
+      {:ok, {:search_results, results, _max_score, _num_found}} ->
+        results =
+          results
+          |> Enum.map(fn {index_name, properties} ->
+          meta = Enum.into(properties, %{})
+          resource = fn -> repo.get(schema_module, meta["_yz_rk"]) end
+          %{meta: meta, resource: resource}
+        end)
+        {:ok, results}
+    end
+  end
+
 
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
-    with {:ok, database} <- Keyword.fetch(config, :database),
-         hostname = Keyword.get(config, :hostname, @default_hostname),
+    require Logger
+    {:ok, database} = Keyword.fetch(config, :database)
+    already_exists_binary = "Error creating bucket type #{database}:\nalready_active\n"
+    with hostname = Keyword.get(config, :hostname, @default_hostname),
          port = Keyword.get(config, :port, @default_port),
          {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
+           Logger.info("Creating bucket type `#{database}`..."),
          {res1, 0} <- System.cmd("riak-admin", ["bucket-type", "create", database, ~s[{"props":{"datatype":"map"}}]]),
-         {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]) do
+           Logger.info("Activating Bucket Type `#{database}`..."),
+         {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]),
+           database_index = "#{database}_index",
+           Logger.info("Creating Search Index `#{database_index}`..."),
+           :ok <- Riak.Search.Index.put(pid, database_index),
+           Logger.info("Associating Search Index `#{database_index}`with bucket type `#{database}`..."),
+           :ok <- Riak.Bucket.Type.put(pid, database, search_index: database_index)
+      do
       IO.puts res1
       IO.puts res2
       :ok
     else
-      {"Error creating bucket type riak3_ecto_test_example:\nalready_active\n", 1} ->
+      {^already_exists_binary, 1} ->
         {:error, :already_up}
       {command_error_string, 1} when is_binary(command_error_string) ->
         IO.inspect(command_error_string, label: "command_error_string")
@@ -308,13 +381,14 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter.Storage
   def storage_down(config) do
+    require Logger
     with {:ok, database} <- Keyword.fetch(config, :database),
          hostname = Keyword.get(config, :hostname, @default_hostname),
            port = Keyword.get(config, :port, @default_port),
          {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
            buckets = Riak.Bucket.Type.list!(pid, database) do
       for bucket <- buckets do
-        IO.puts "Flushing values in bucket `#{bucket}`"
+        Logger.info "Flushing values in bucket `#{bucket}`"
         keys = Riak.Bucket.keys!(pid, database, bucket)
         n_keys = Enum.count(keys)
 
@@ -325,7 +399,7 @@ defmodule RiakEcto3 do
           ProgressBar.render(index + 1, n_keys)
         end)
       end
-      IO.puts "NOTE: Riak does not support 'dropping' a bucket type (or buckets contained within), so this task has only removed all data contained within them."
+      Logger.info "NOTE: Riak does not support 'dropping' a bucket type (or buckets contained within), so this task has only removed all data contained within them."
       :ok
     end
   end

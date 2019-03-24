@@ -32,5 +32,5 @@ use Mix.Config
 if Mix.env() == :test do
   config :riak_ecto3, ecto_repos: [RiakEcto3Test.Example.Repo]
   config :riak_ecto3, RiakEcto3Test.Example.Repo,
-    database: "riak3_ecto_test_example"
+    database: "riak_ecto3_test_example"
 end
