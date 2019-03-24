@@ -21,6 +21,31 @@ defmodule RiakEcto3 do
      This should be a bucket_type that has the datatype set to `map`.
   - `hostname:` The hostname to connect to. Defaults to `#{@default_hostname}`.
   - `port:` The port to connect to. Defaults to `#{@default_port}`.
+
+  ## Ecto
+
+  RiakEcto3 currently does not use a pool (but this might change in the future).
+
+  ## Queries
+
+  RiakEcto3 only supports `get`.
+
+  (In the future, hopefully we support simple 2i (secondary indexes) as well)
+
+  ## Mix tasks
+
+  ### Storage
+
+  RiakEcto3 only supports the `mix ecto.create` task.
+  This task will use `riak-admin` locally to create an appropriate bucket-type
+  that uses the `map` CRDT.
+  Be aware that `riak-admin` does not use any connection-settings, as it expects
+  to be ran on the computer that (one of the nodes of) the database will reside on.
+
+  The `mix ecto.drop` task is not supported, because Riak has no way to
+  drop an existing bucket_type.
+
+
   """
 
   @behaviour Ecto.Adapter
@@ -28,7 +53,7 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter
   defmacro __before_compile__(env) do
-    IO.puts "Before Compile of RiakEcto3"
+    # IO.puts "Before Compile of RiakEcto3"
 
     quote do
       def get(schema_module, id, opts \\ []) do
@@ -84,9 +109,9 @@ defmodule RiakEcto3 do
   TODO configurable Riak location
   """
   def init(config) do
-    hostname = Keyword.get(config, :hostname, "localhost")
-    port = Keyword.get(config, :port, 8087)
-    child_spec = %{id: Riak.Connection, start: {Riak.Connection, :start_link, [hostname, port]}}
+    hostname = Keyword.get(config, :hostname, @default_hostname)
+    port = Keyword.get(config, :port, @default_port)
+    child_spec = %{id: Riak.Connection, start: {Riak.Connection, :start_link, [String.to_charlist(hostname), port]}}
     {:ok, child_spec, %{}}
   end
 
@@ -95,7 +120,7 @@ defmodule RiakEcto3 do
   TODO Properly implement
   """
   def loaders(primitive_type, ecto_type)
-  def loaders(:string, type), do: [&RiakEcto.Loaders.string/1, type]
+  def loaders(:string, type), do: [&RiakEcto3.Loaders.string/1, type]
   def loaders(:id, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:integer, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:boolean, type), do: [&RiakEcto3.Loaders.boolean/1, type]
@@ -213,9 +238,9 @@ defmodule RiakEcto3 do
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
     with {:ok, database} <- Keyword.fetch(config, :database),
-    {:ok, pid} <- Riak.Connection.start_link,
-    {res1, 0} <- System.cmd("riak-admin", ["bucket-type", "create", database, ~s[{"props":{"datatype":"map"}}]]),
-    {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]) do
+         {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(config.hostname), config.port),
+         {res1, 0} <- System.cmd("riak-admin", ["bucket-type", "create", database, ~s[{"props":{"datatype":"map"}}]]),
+         {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]) do
       IO.puts res1
       IO.puts res2
       :ok
@@ -229,6 +254,6 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter.Storage
   def storage_down(config) do
-    {:error, :unsupported_by_riak}
+    {:error, "Unfortunately, dropping a bucket_type is unsupported in Riak."}
   end
 end
