@@ -56,14 +56,39 @@ defmodule RiakEcto3 do
     # IO.puts "Before Compile of RiakEcto3"
 
     quote do
+      @doc """
+      Fetches a struct using the given primary key `id`.
+
+      On success, will return the struct.
+      On failure (if the struct does not exist within the Riak database), returns `nil`.
+      """
       def get(schema_module, id, opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.get(__MODULE__, meta, schema_module, id, opts)
       end
 
+      @doc """
+      Inserts (or updates) a struct in the database.
+      Pass either a struct or an `Ecto.Changeset`
+
+      On success, will return `{:ok, struct}`.
+      On failure (when there were validation problems for instance), will return `{:error, struct_or_changeset}`
+      """
       def insert(struct_or_changeset, opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.insert(__MODULE__, meta, struct_or_changeset, opts)
+      end
+
+      @doc """
+      Deletes a struct from the database, using the primary ID of the struct or changeset
+      passed to this function.
+
+      Returns `{:ok, struct}` on success.
+      Raises `Ecto.NoPrimaryKeyValueError` if the passed struct or changeset does not have a primary key set.
+      """
+      def delete(struct_or_changeset, opts \\ []) do
+        {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
+        adapter.delete(__MODULE__, meta, struct_or_changeset, opts)
       end
     end
   end
@@ -89,7 +114,6 @@ defmodule RiakEcto3 do
   def dumpers(:float, type), do: [type, &RiakEcto3.Dumpers.float/1]
   def dumpers(:binary_id, type), do: [type, Ecto.UUID] # TODO is this correct?
   def dumpers(primitive, type) do
-    IO.inspect({primitive, type})
     [type]
   end
 
@@ -138,7 +162,6 @@ defmodule RiakEcto3 do
     source = schema_module.__schema__(:source)
     # {:ok, riak_id} = dump_primary_key(schema_module, id)
     riak_id = "#{id}"
-    IO.inspect({meta.pid, repo.config[:database], source, riak_id})
     result = Riak.find(meta.pid, repo.config[:database], source, riak_id)
     case result do
       {:error, problem} -> raise ArgumentError, "Riak error: #{problem}"
@@ -187,12 +210,10 @@ defmodule RiakEcto3 do
     |> Enum.reject(fn {key, type, _} ->
       type == nil
     end)
-    |> IO.inspect
     |> Enum.map(fn {key, type, value} ->
       {:ok, riak_value} = Ecto.Type.adapter_dump(__MODULE__, type, value)
       {Atom.to_string(key), riak_value}
     end)
-    |> IO.inspect
     |> Enum.reduce(Riak.CRDT.Map.new, fn {key, value}, riak_map ->
       Riak.CRDT.Map.put(riak_map, key, value)
     end)
@@ -200,9 +221,6 @@ defmodule RiakEcto3 do
 
   @doc """
   Implementation of Repo.insert
-
-  For now, only works with plain structs.
-  (Changeset support is TODO)
   """
   def insert(repo, meta, struct_or_changeset, opts)
   def insert(repo, meta, changeset = %Ecto.Changeset{data: struct = %schema_module{}, changes: changes}, opts) do
@@ -231,7 +249,6 @@ defmodule RiakEcto3 do
   end
 
   defp do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts) do
-    IO.inspect({repo, meta, source, riak_map, riak_id, schema_module, opts})
     case Riak.update(meta.pid, riak_map, repo.config[:database], source, riak_id) do
       {:ok, riak_map} ->
         res = repo.load(schema_module, load_riak_map(riak_map))
@@ -240,6 +257,32 @@ defmodule RiakEcto3 do
         other
     end
   end
+
+  @doc """
+  Implementation of Repo.delete
+  """
+  def delete(repo, meta, struct_or_changeset, opts)
+  def delete(_repo, _meta, changeset = %Ecto.Changeset{valid?: false}, _opts) do
+    {:error, changeset}
+  end
+  def delete(repo, meta, changeset = %Ecto.Changeset{data: struct = %schema_module{}}, opts) do
+    delete(repo, meta, struct, opts)
+  end
+
+  def delete(repo, meta, struct = %schema_module{}, opts) do
+    source = schema_module.__schema__(:source)
+    [primary_key | _] = schema_module.__schema__(:primary_key)
+    riak_id = "#{Map.fetch!(struct, primary_key)}"
+    if riak_id == "" do
+      raise Ecto.NoPrimaryKeyValueError
+    end
+
+    case Riak.delete(meta.pid, repo.config[:database], source, riak_id) do
+      :ok -> {:ok, struct}
+      :error -> raise Ecto.StaleEntryError
+    end
+  end
+
 
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
@@ -278,7 +321,6 @@ defmodule RiakEcto3 do
         keys
         |> Enum.with_index
         |> Enum.each(fn {key, index} ->
-          IO.inspect("Deleting `#{inspect(key)}`")
           Riak.delete(pid, database, bucket, key)
           ProgressBar.render(index + 1, n_keys)
         end)

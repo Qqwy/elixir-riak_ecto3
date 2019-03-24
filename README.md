@@ -9,6 +9,7 @@ RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward).
 
 ## Planned Features
 
+- Support for `Repo.delete`
 - Support for Secondary Indexes (2i) to allow rudimentary searching functionality.
 - Support for associations
   - and preloading them.
