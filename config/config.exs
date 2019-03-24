@@ -29,9 +29,8 @@ use Mix.Config
 #
 #     import_config "#{Mix.env()}.exs"
 
-config :riak_ecto3, ecto_repos: [RiakEcto3.Example.Repo]
-config :riak_ecto3, RiakEcto3Test.Repo,
-  database: "riak_test"
-
-config :riak_ecto3, RiakEcto3.Example.Repo,
-  database: "riak_example"
+if Mix.env() == :test do
+  config :riak_ecto3, ecto_repos: [RiakEcto3Test.Example.Repo]
+  config :riak_ecto3, RiakEcto3Test.Example.Repo,
+    database: "riak3_ecto_test_example"
+end

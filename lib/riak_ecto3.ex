@@ -238,14 +238,19 @@ defmodule RiakEcto3 do
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
     with {:ok, database} <- Keyword.fetch(config, :database),
-         {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(config.hostname), config.port),
+         hostname = Keyword.get(config, :hostname, @default_hostname),
+         port = Keyword.get(config, :port, @default_port),
+         {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
          {res1, 0} <- System.cmd("riak-admin", ["bucket-type", "create", database, ~s[{"props":{"datatype":"map"}}]]),
          {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]) do
       IO.puts res1
       IO.puts res2
       :ok
     else
+      {"Error creating bucket type riak3_ecto_test_example:\nalready_active\n", 1} ->
+        {:error, :already_up}
       {command_error_string, 1} when is_binary(command_error_string) ->
+        IO.inspect(command_error_string, label: "command_error_string")
         {:error, command_error_string}
       error ->
         {:error, error}
