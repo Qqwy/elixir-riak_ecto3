@@ -282,9 +282,8 @@ defmodule RiakEcto3 do
           Riak.delete(pid, database, bucket, key)
           ProgressBar.render(index + 1, n_keys)
         end)
-
       end
-      IO.puts "NOTE: Riak does not support 'dropping' a bucket type (or buckets contained within), so it has only been emptied."
+      IO.puts "NOTE: Riak does not support 'dropping' a bucket type (or buckets contained within), so this task has only removed all data contained within them."
       :ok
     end
   end
