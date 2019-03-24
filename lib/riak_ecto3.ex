@@ -205,14 +205,17 @@ defmodule RiakEcto3 do
   (Changeset support is TODO)
   """
   def insert(repo, meta, struct_or_changeset, opts)
-  def insert(repo, meta, %Ecto.Changeset{data: struct = %schema_module{}, changes: changes}, opts) do
+  def insert(repo, meta, changeset = %Ecto.Changeset{data: struct = %schema_module{}, changes: changes}, opts) do
     riak_map = build_riak_map(schema_module, changes)
 
     source = schema_module.__schema__(:source)
     [primary_key | _] = schema_module.__schema__(:primary_key)
     riak_id = "#{Map.fetch!(struct, primary_key)}"
 
-    do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts)
+    case do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts) do
+      :ok -> {:ok, repo.get(schema_module, riak_id)}
+      :error -> {:error, changeset}
+    end
   end
   def insert(repo, meta, struct = %schema_module{}, opts) do
     riak_map = dump(struct)
@@ -221,7 +224,10 @@ defmodule RiakEcto3 do
     [primary_key | _] = schema_module.__schema__(:primary_key)
     riak_id = "#{Map.fetch!(struct, primary_key)}"
 
-    do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts)
+    case do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts) do
+      :ok -> {:ok, repo.get(schema_module, riak_id)}
+      :error -> {:error, Ecto.Changeset.change(struct)}
+    end
   end
 
   defp do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts) do
