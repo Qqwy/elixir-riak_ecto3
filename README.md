@@ -8,6 +8,8 @@ RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward).
 - `Repo.get`  and `Repo.insert/update`
 - Support for `Repo.delete`
 - Usage of raw Solr-queries with `Repo.raw_solr_query/2`.
+- Setting up a Riak bucket type ('database')
+- 'Tearing down' a Riak bucket type ('database'): It will only be flushed because Riak does not support the actual dropping of a bucket or bucket type.
 
 ## Planned Features
 
