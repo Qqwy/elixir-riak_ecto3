@@ -1,6 +1,6 @@
 # RiakEcto3
 
-RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward).
+RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (For Riak KV v 2.0 and upward).
 
 ## Features
 
