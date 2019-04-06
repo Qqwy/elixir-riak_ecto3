@@ -6,14 +6,15 @@ defmodule RiakEcto3 do
   Riak KV 2.0 adapter for Ecto 3.
   Works by mapping Ecto Schemas to Riak Map-CRDTs.
 
-  NOTE: To use, ensure the following has been executed on your Riak database:
+  **NOTE:** To use, ensure the following has been executed on your Riak database:
 
-  riak-admin bucket-type create your_database_name '{"props":{"datatype":"map"}}'
-  riak-admin bucket-type activate your_database_name
+      riak-admin bucket-type create your_database_name '{"props":{"datatype":"map"}}'
+      riak-admin bucket-type activate your_database_name
 
   Here, `your_database_name` refers to any name you'd like the bucket type
   that RiakEcto3 will use to be called. This is the same name you should use
   in your configuration.
+  The `mix ecto.create` task will also do this for you.
 
   ## Supported Configuration Options:
 
