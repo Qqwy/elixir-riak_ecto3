@@ -25,9 +25,7 @@ defmodule RiakEcto3.MixProject do
     [
       {:ecto, "~> 3.0"},
       {:riak, "~> 1.0"},
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
-      {:progress_bar, "~> 2.0", only: [:test]}
+      {:progress_bar, "~> 2.0"} # Used for progress indicators during mix DB-creation/deletion tasks.
     ]
   end
 
