@@ -14,18 +14,20 @@ RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward), whic
 - `Repo.delete`
 - Executing raw Solr queries
 - Finding a key within a range of keys (which relies on Riak's Secondary Indexes feature).
-- Very basic repository creation and 'deletion' (actually: flushing) support.
+- Setting up a Riak bucket type ('database')
+- 'Tearing down' a Riak bucket type ('database'): It will only be flushed because Riak does not support the actual dropping of a bucket or bucket type.
+
 
 ## Planned Features
 
 - Support for associations
   - and preloading them.
 - Support for the Counter, Set and Flag CRDT datatypes.
+- (Maybe!) a converter for the Ecto query syntax into the Solr query syntax.
 
 ## (For now) deliberatly not planned as features
 
 - Support for the rest of Secondary Indexes, because these are deprecated and custom indexes cannot be created for CRDTs.
-- Complete query-support for Solr.
 
 ## Installation
 
