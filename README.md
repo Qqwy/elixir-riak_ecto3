@@ -1,6 +1,6 @@
 # RiakEcto3
 
-[![hex.pm version](https://img.shields.io/hexpm/v/riak_ecto3.svg)](https://hex.pm/packages/map_diff)
+[![hex.pm version](https://img.shields.io/hexpm/v/riak_ecto3.svg)](https://hex.pm/packages/riak_ecto3)
 [![Build Status](https://travis-ci.org/Qqwy/elixir_riak_ecto3.svg?branch=master)](https://travis-ci.org/Qqwy/elixir_riak_ecto3)
 [![Inline docs](http://inch-ci.org/github/qqwy/elixir_riak_ecto3.svg)](http://inch-ci.org/github/qqwy/elixir_riak_ecto3)
 
