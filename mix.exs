@@ -5,7 +5,7 @@ defmodule RiakEcto3.MixProject do
     [
       app: :riak_ecto3,
       version: "0.5.0",
-      elixir: "~> 1.7",
+      elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env),
