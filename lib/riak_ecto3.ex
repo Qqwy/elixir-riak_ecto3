@@ -8,8 +8,8 @@ defmodule RiakEcto3 do
 
   NOTE: To use, ensure the following has been executed on your Riak database:
 
-      riak-admin bucket-type create your_database_name '{"props":{"datatype":"map"}}'
-      riak-admin bucket-type activate your_database_name
+  riak-admin bucket-type create your_database_name '{"props":{"datatype":"map"}}'
+  riak-admin bucket-type activate your_database_name
 
   Here, `your_database_name` refers to any name you'd like the bucket type
   that RiakEcto3 will use to be called. This is the same name you should use
@@ -18,7 +18,7 @@ defmodule RiakEcto3 do
   ## Supported Configuration Options:
 
   - `database:` Name of the `bucket_type` to use for storing all data of this Repo.
-     This should be a bucket_type that has the datatype set to `map`.
+  This should be a bucket_type that has the datatype set to `map`.
   - `hostname:` The hostname to connect to. Defaults to `#{@default_hostname}`.
   - `port:` The port to connect to. Defaults to `#{@default_port}`.
 
@@ -118,16 +118,30 @@ defmodule RiakEcto3 do
 
       Example:
 
-          iex> bob = %User{name: "Bob", id: 42, age: 41}
-          iex> {:ok, _} = Repo.insert(bob)
-          iex> :timer.sleep(1000) # It takes 'typically a second' before SOLR is able to see changes.
-          iex> {:ok, results} = Repo.raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
-          iex> results |> Enum.map(fn elem -> elem.resource.() end) |> Enum.any?(fn user -> user.name == "Bob" end)
-          true
+      iex> bob = %User{name: "Bob", id: 42, age: 41}
+      iex> {:ok, _} = Repo.insert(bob)
+      iex> :timer.sleep(1000) # It takes 'typically a second' before SOLR is able to see changes.
+      iex> {:ok, results} = Repo.raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
+      iex> results |> Enum.map(fn elem -> elem.resource.() end) |> Enum.any?(fn user -> user.name == "Bob" end)
+      true
       """
       def raw_solr_query(schema_module, query, solr_opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.raw_solr_query(__MODULE__, meta, schema_module, query, solr_opts)
+      end
+
+      @doc """
+      Allows you look up all keys in between a lower and upper bound.
+
+      Be aware that since all Riak keys are strings, these lower and upper bounds are also cast to strings,
+      and that lexicographical comparisons are made!
+
+      Under the hood, it uses Riak's 'secondary indexes', which are not supported when using `Bitcask` as storage mechanism.
+      (Instead, set it to e.g. Leveldb)
+      """
+      def find_keys_between(schema_module, lower_bound, upper_bound) do
+        {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
+        adapter.find_keys_between(__MODULE__, meta, schema_module, lower_bound, upper_bound)
       end
     end
   end
@@ -217,7 +231,7 @@ defmodule RiakEcto3 do
     with {:ok, riak_id} <-  Ecto.Type.adapter_dump(__MODULE__, riak_id_type, value) do
       {:ok, riak_id}
     else _ ->
-      :error
+        :error
     end
   end
 
@@ -346,6 +360,13 @@ defmodule RiakEcto3 do
     end
   end
 
+  def find_keys_between(repo, meta, schema_module, lower_bound, upper_bound) do
+    source = schema_module.__schema__(:source)
+    database = repo.config[:database]
+    IO.inspect({meta.pid, {database, source}, to_string(lower_bound), to_string(upper_bound)})
+    :riakc_pb_socket.get_index(meta.pid, {database, source}, "$key", to_string(lower_bound), to_string(upper_bound))
+  end
+
 
   @impl Ecto.Adapter.Storage
   def storage_up(config) do
@@ -368,14 +389,14 @@ defmodule RiakEcto3 do
       IO.puts res1
       IO.puts res2
       :ok
-    else
-      {^already_exists_binary, 1} ->
-        {:error, :already_up}
-      {command_error_string, 1} when is_binary(command_error_string) ->
-        IO.inspect(command_error_string, label: "command_error_string")
+      else
+        {^already_exists_binary, 1} ->
+          {:error, :already_up}
+        {command_error_string, 1} when is_binary(command_error_string) ->
+          IO.inspect(command_error_string, label: "command_error_string")
         {:error, command_error_string}
-      error ->
-        {:error, error}
+        error ->
+          {:error, error}
     end
   end
 
