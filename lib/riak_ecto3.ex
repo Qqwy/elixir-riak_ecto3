@@ -375,31 +375,41 @@ defmodule RiakEcto3 do
     require Logger
     {:ok, database} = Keyword.fetch(config, :database)
     already_exists_binary = "Error creating bucket type #{database}:\nalready_active\n"
-    with hostname = Keyword.get(config, :hostname, @default_hostname),
-         port = Keyword.get(config, :port, @default_port),
-         {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
+    hostname = Keyword.get(config, :hostname, @default_hostname)
+    port = Keyword.get(config, :port, @default_port)
+    res = with {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
            Logger.info("Creating bucket type `#{database}`..."),
          {res1, 0} <- System.cmd("riak-admin", ["bucket-type", "create", database, ~s[{"props":{"datatype":"map"}}]]),
            Logger.info("Activating Bucket Type `#{database}`..."),
-         {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database]),
-           database_index = "#{database}_index",
-           Logger.info("Creating Search Index `#{database_index}`..."),
-           :ok <- Riak.Search.Index.put(pid, database_index),
-           Logger.info("Associating Search Index `#{database_index}`with bucket type `#{database}`..."),
-           :ok <- Riak.Bucket.Type.put(pid, database, search_index: database_index)
+         {res2, 0} <- System.cmd("riak-admin", ["bucket-type", "activate", database])
       do
-      IO.puts res1
-      IO.puts res2
-      :ok
+        IO.puts res1
+        IO.puts res2
+        :ok
       else
         {^already_exists_binary, 1} ->
           {:error, :already_up}
         {command_error_string, 1} when is_binary(command_error_string) ->
           IO.inspect(command_error_string, label: "command_error_string")
-        {:error, command_error_string}
+          {:error, command_error_string}
         error ->
           {:error, error}
     end
+    create_search_index(database, hostname, port)
+    res
+  end
+
+  defp create_search_index(database, hostname, port) do
+    require Logger
+    with database_index = "#{database}_index",
+         {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),
+      Logger.info("(Re)Creating Search Index `#{database_index}`..."),
+      :ok <- Riak.Search.Index.put(pid, database_index),
+      Logger.info("(Re)Associating Search Index `#{database_index}`with bucket type `#{database}`..."),
+           :ok <- Riak.Bucket.Type.put(pid, database, search_index: database_index)
+      do
+      :ok
+      end
   end
 
   @impl Ecto.Adapter.Storage
