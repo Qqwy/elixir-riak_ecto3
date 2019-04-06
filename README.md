@@ -1,5 +1,10 @@
 # RiakEcto3
 
+[![hex.pm version](https://img.shields.io/hexpm/v/riak_ecto3.svg)](https://hex.pm/packages/map_diff)
+[![Build Status](https://travis-ci.org/Qqwy/elixir_riak_ecto3.svg?branch=master)](https://travis-ci.org/Qqwy/elixir_riak_ecto3)
+[![Inline docs](http://inch-ci.org/github/qqwy/elixir_riak_ecto3.svg)](http://inch-ci.org/github/qqwy/elixir_riak_ecto3)
+
+
 RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward).
 
 ## Features
@@ -30,7 +35,7 @@ by adding `riak_ecto3` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:riak_ecto3, "~> 0.1.0"}
+    {:riak_ecto3, "~> 0.5.0"}
   ]
 end
 ```
