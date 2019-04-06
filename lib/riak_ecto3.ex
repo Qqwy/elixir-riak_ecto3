@@ -54,10 +54,6 @@ defmodule RiakEcto3 do
     # IO.puts "Before Compile of RiakEcto3"
 
     quote do
-      # Because in Riak all keys are cast to strings
-      # having this as default key type makes shooting your foot less likely
-      @primary_key {:id, :binary_id, autogenerate: false}
-      @foreign_key_type :binary_id
 
       @doc """
       Fetches a struct using the given primary key `id`.
@@ -65,12 +61,12 @@ defmodule RiakEcto3 do
       On success, will return the struct.
       On failure (if the struct does not exist within the Riak database), returns `nil`.
 
-      iex> alice = %User{name: "Alice", age: 10, id: 33}
+      iex> alice = %User{name: "Alice", age: 10, id: "33"}
       iex> Repo.get(User, "33") == nil
       true
-      iex> {:ok, %User{name: "Alice", age: 10, id: 33}} = Repo.insert(alice)
-      iex> %user{name: "Alice", age: 10, id: 33} = Repo.get(User, "33")
-      iex> {:ok, %User{name: "Alice", age: 10, id: 33}} = Repo.delete(alice)
+      iex> {:ok, %User{name: "Alice", age: 10, id: "33"}} = Repo.insert(alice)
+      iex> %user{name: "Alice", age: 10, id: "33"} = Repo.get(User, "33")
+      iex> {:ok, %User{name: "Alice", age: 10, id: "33"}} = Repo.delete(alice)
       iex> Repo.get(User, "33") == nil
       true
 
@@ -121,7 +117,7 @@ defmodule RiakEcto3 do
 
       Example:
 
-      iex> bob = %User{name: "Bob", id: 42, age: 41}
+      iex> bob = %User{name: "Bob", id: "42", age: 41}
       iex> {:ok, _} = Repo.insert(bob)
       iex> :timer.sleep(1000) # It takes 'typically a second' before SOLR is able to see changes.
       iex> {:ok, results} = Repo.riak_raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
@@ -148,7 +144,7 @@ defmodule RiakEcto3 do
       iex> {:ok, _} = Repo.insert(bob)
       iex> jose = %User{name: "Jose", id: "1240", age: 30}
       iex> {:ok, _} = Repo.insert(jose)
-      iex> Repo.riak_find_keys_between(User, "1200", "1300")
+      iex> Repo.riak_find_keys_between(User, "1200", "1300") |> Enum.sort
       ["1234", "1240"]
       """
       def riak_find_keys_between(schema_module, lower_bound, upper_bound) do
@@ -178,7 +174,7 @@ defmodule RiakEcto3 do
   def dumpers(:integer, type), do: [type, &RiakEcto3.Dumpers.integer/1]
   def dumpers(:boolean, type), do: [type, &RiakEcto3.Dumpers.boolean/1]
   def dumpers(:float, type), do: [type, &RiakEcto3.Dumpers.float/1]
-  def dumpers(:binary_id, type), do: [type, Ecto.UUID] # TODO is this correct?
+  def dumpers(:binary_id, type), do: [type, &RiakEcto3.Dumpers.string/1]
   def dumpers(primitive, type) do
     [type]
   end
@@ -215,7 +211,7 @@ defmodule RiakEcto3 do
   def loaders(:integer, type), do: [&RiakEcto3.Loaders.integer/1, type]
   def loaders(:boolean, type), do: [&RiakEcto3.Loaders.boolean/1, type]
   def loaders(:float, type), do: [&RiakEcto3.Loaders.float/1, type]
-  def loaders(:binary_id, type), do: [Ecto.UUID, type]
+  def loaders(:binary_id, type), do: [&RiakEcto3.Loaders.string/1, type]
   def loaders(_primitive, type), do: [type]
 
   @doc """

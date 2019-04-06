@@ -3,7 +3,7 @@ defmodule RiakEcto3Test.Example.Repo do
 end
 
 defmodule RiakEcto3Test.Example.User do
-  use Ecto.Schema
+  use RiakEcto3.Schema
   schema "users" do
     field :name, :string
     field :age, :integer
