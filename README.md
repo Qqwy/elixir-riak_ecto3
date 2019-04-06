@@ -5,7 +5,7 @@
 [![Inline docs](http://inch-ci.org/github/qqwy/elixir_riak_ecto3.svg)](http://inch-ci.org/github/qqwy/elixir_riak_ecto3)
 
 
-RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward).
+RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward), which represents structs as Riak CRDT Data Types.
 
 ## Features
 
