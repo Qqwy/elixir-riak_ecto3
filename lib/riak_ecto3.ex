@@ -165,7 +165,7 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter
   @doc """
-  TODO Properly implement
+  Dumps datatypes so they can properly be stored in Riak
   """
   def dumpers(primitive_type, ecto_type)
   def dumpers(:string, type), do: [type, &RiakEcto3.Dumpers.string/1]
@@ -180,18 +180,21 @@ defmodule RiakEcto3 do
 
   @impl Ecto.Adapter
   @doc """
-  TODO double-check implementation
+  Implementation of Ecto.Adapter.ensure_all_started
   """
   def ensure_all_started(_config, app_restart_type) do
-    with {:ok, from_driver} <- Application.ensure_all_started(:riak, app_restart_type), do:
-    # We always return the adapter to force it to be restarted if necessary, because this is what `ecto_sql` also does.
-    # See: https://github.com/elixir-ecto/ecto_sql/blob/master/lib/ecto/adapters/sql.ex#L420
-    {:ok, (List.delete(from_driver, :riak) ++ [:riak])}
+    with {:ok, from_driver} <- Application.ensure_all_started(:riak, app_restart_type) do
+      # We always return the adapter to force it to be restarted if necessary, because this is what `ecto_sql` also does.
+      # See: https://github.com/elixir-ecto/ecto_sql/blob/master/lib/ecto/adapters/sql.ex#L420
+      {:ok, (List.delete(from_driver, :riak) ++ [:riak])}
+    end
   end
 
   @impl Ecto.Adapter
   @doc """
-  TODO configurable Riak location
+  Initializes the connection with Riak.
+
+  Implementation of Ecto.Adapter.init
   """
   def init(config) do
     hostname = Keyword.get(config, :hostname, @default_hostname)
