@@ -45,7 +45,7 @@ defmodule RiakEcto3.MixProject do
     [
       travis: ["test"],
       # Ensures database is reset before tests are run
-      test: ["ecto.create --quiet", "test", "ecto.drop --quiet"],
+      # test: ["ecto.create --quiet", "test", "ecto.drop --quiet"],
     ]
   end
 
