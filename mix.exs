@@ -12,6 +12,7 @@ defmodule RiakEcto3.MixProject do
       aliases: aliases(),
       description: description(),
       package: package(),
+      source_url: "https://github.com/Qqwy/elixir_riak_ecto3",
     ]
   end
 
