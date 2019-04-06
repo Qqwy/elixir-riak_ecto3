@@ -50,9 +50,7 @@ defmodule RiakEcto3 do
   @behaviour Ecto.Adapter.Storage
 
   @impl Ecto.Adapter
-  defmacro __before_compile__(env) do
-    # IO.puts "Before Compile of RiakEcto3"
-
+  defmacro __before_compile__(_env) do
     quote do
 
       @doc """
@@ -158,9 +156,9 @@ defmodule RiakEcto3 do
   @impl Ecto.Adapter
   @doc """
   NOTE: Currently we are not using the connection pool to keep the implementation simple.
-  This could be changed later since `Riak` provides one.
+  This could be changed in a future version since `Riak` provides one.
   """
-  def checkout(adapter_meta, config, fun) do
+  def checkout(_adapter_meta, _config, fun) do
     fun.()
   end
 
@@ -175,7 +173,7 @@ defmodule RiakEcto3 do
   def dumpers(:boolean, type), do: [type, &RiakEcto3.Dumpers.boolean/1]
   def dumpers(:float, type), do: [type, &RiakEcto3.Dumpers.float/1]
   def dumpers(:binary_id, type), do: [type, &RiakEcto3.Dumpers.string/1]
-  def dumpers(primitive, type) do
+  def dumpers(_primitive, type) do
     [type]
   end
 
@@ -183,7 +181,7 @@ defmodule RiakEcto3 do
   @doc """
   TODO double-check implementation
   """
-  def ensure_all_started(config, app_restart_type) do
+  def ensure_all_started(_config, app_restart_type) do
     with {:ok, from_driver} <- Application.ensure_all_started(:riak, app_restart_type), do:
     # We always return the adapter to force it to be restarted if necessary, because this is what `ecto_sql` also does.
     # See: https://github.com/elixir-ecto/ecto_sql/blob/master/lib/ecto/adapters/sql.ex#L420
@@ -220,9 +218,8 @@ defmodule RiakEcto3 do
   Returns `nil` if nothing is found. Returns the structure if something was found.
   Raises an ArgumentError using improperly.
   """
-  def get(repo, meta, schema_module, id, opts) do
+  def get(repo, meta, schema_module, id, _opts) do
     source = schema_module.__schema__(:source)
-    # {:ok, riak_id} = dump_primary_key(schema_module, id)
     riak_id = "#{id}"
     result = Riak.find(meta.pid, repo.config[:database], source, riak_id)
     case result do
@@ -230,16 +227,6 @@ defmodule RiakEcto3 do
       nil -> nil
       riak_map ->
         repo.load(schema_module, load_riak_map(riak_map))
-    end
-  end
-
-  defp dump_primary_key(schema_module, value) do
-    [primary_key | _] = schema_module.__schema__(:primary_key)
-    riak_id_type = schema_module.__schema__(:type, primary_key)
-    with {:ok, riak_id} <-  Ecto.Type.adapter_dump(__MODULE__, riak_id_type, value) do
-      {:ok, riak_id}
-    else _ ->
-        :error
     end
   end
 
@@ -269,7 +256,7 @@ defmodule RiakEcto3 do
       type = schema_module.__schema__(:type, key)
       {key, type, value}
     end)
-    |> Enum.reject(fn {key, type, _} ->
+    |> Enum.reject(fn {_key, type, _} ->
       type == nil
     end)
     |> Enum.map(fn {key, type, value} ->
@@ -313,7 +300,7 @@ defmodule RiakEcto3 do
     end
   end
 
-  defp do_insert(repo, meta, source, riak_map, riak_id, schema_module, opts) do
+  defp do_insert(repo, meta, source, riak_map, riak_id, schema_module, _opts) do
     case Riak.update(meta.pid, riak_map, repo.config[:database], source, riak_id) do
       {:ok, riak_map} ->
         res = repo.load(schema_module, load_riak_map(riak_map))
@@ -330,11 +317,11 @@ defmodule RiakEcto3 do
   def delete(_repo, _meta, changeset = %Ecto.Changeset{valid?: false}, _opts) do
     {:error, changeset}
   end
-  def delete(repo, meta, changeset = %Ecto.Changeset{data: struct = %schema_module{}}, opts) do
+  def delete(repo, meta, %Ecto.Changeset{data: struct = %_schema_module{}}, opts) do
     delete(repo, meta, struct, opts)
   end
 
-  def delete(repo, meta, struct = %schema_module{}, opts) do
+  def delete(repo, meta, struct = %schema_module{}, _opts) do
     source = schema_module.__schema__(:source)
     [primary_key | _] = schema_module.__schema__(:primary_key)
     riak_id = "#{Map.fetch!(struct, primary_key)}"
@@ -362,7 +349,7 @@ defmodule RiakEcto3 do
       {:ok, {:search_results, results, _max_score, _num_found}} ->
         results =
           results
-          |> Enum.map(fn {index_name, properties} ->
+          |> Enum.map(fn {_index_name, properties} ->
           meta = Enum.into(properties, %{})
           resource = fn -> repo.get(schema_module, meta["_yz_rk"]) end
           %{meta: meta, resource: resource}
