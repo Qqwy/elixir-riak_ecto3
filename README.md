@@ -6,18 +6,21 @@ RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward).
 
 - Structs are serialized as Riak CRDT Data Types.
 - `Repo.get`  and `Repo.insert/update`
+- `Repo.delete`
+- Executing raw Solr queries
+- Finding a key within a range of keys (which relies on Riak's Secondary Indexes feature).
+- Very basic repository creation and 'deletion' (actually: flushing) support.
 
 ## Planned Features
 
-- Support for `Repo.delete`
-- Support for Secondary Indexes (2i) to allow rudimentary searching functionality.
 - Support for associations
   - and preloading them.
 - Support for the Counter, Set and Flag CRDT datatypes.
 
 ## (For now) deliberatly not planned as features
 
-- Support for searching with Solr, because it is better to have a small library with a couple of stable features, than a large library with only many unstable features.
+- Support for the rest of Secondary Indexes, because these are deprecated and custom indexes cannot be created for CRDTs.
+- Complete query-support for Solr.
 
 ## Installation
 
@@ -32,7 +35,12 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/riak_ecto3](https://hexdocs.pm/riak_ecto3).
+Documentation can be found at [https://hexdocs.pm/riak_ecto3](https://hexdocs.pm/riak_ecto3).
+
+## Running Tests
+
+The tests expect Riak to be running in localhost at its default port (8087).
+- Some of the features of RiakEcto3 require that searching is turned on, (the `search` setting in `riak.conf`)
+- Some features (The ones that require secondary indexes) require that either the 'leveldb' or 'memory'-backend is used. (The `storage_backend` setting in `riak.conf`)
+- Besides this, there are no restrictions when running the tests.
 

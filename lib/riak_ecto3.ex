@@ -44,8 +44,6 @@ defmodule RiakEcto3 do
 
   The `mix ecto.drop` task is not supported, because Riak has no way to
   drop an existing bucket_type.
-
-
   """
 
   @behaviour Ecto.Adapter
@@ -56,6 +54,11 @@ defmodule RiakEcto3 do
     # IO.puts "Before Compile of RiakEcto3"
 
     quote do
+      # Because in Riak all keys are cast to strings
+      # having this as default key type makes shooting your foot less likely
+      @primary_key {:id, :binary_id, autogenerate: false}
+      @foreign_key_type :binary_id
+
       @doc """
       Fetches a struct using the given primary key `id`.
 
@@ -121,11 +124,11 @@ defmodule RiakEcto3 do
       iex> bob = %User{name: "Bob", id: 42, age: 41}
       iex> {:ok, _} = Repo.insert(bob)
       iex> :timer.sleep(1000) # It takes 'typically a second' before SOLR is able to see changes.
-      iex> {:ok, results} = Repo.raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
+      iex> {:ok, results} = Repo.riak_raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
       iex> results |> Enum.map(fn elem -> elem.resource.() end) |> Enum.any?(fn user -> user.name == "Bob" end)
       true
       """
-      def raw_solr_query(schema_module, query, solr_opts \\ []) do
+      def riak_raw_solr_query(schema_module, query, solr_opts \\ []) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.raw_solr_query(__MODULE__, meta, schema_module, query, solr_opts)
       end
@@ -136,10 +139,19 @@ defmodule RiakEcto3 do
       Be aware that since all Riak keys are strings, these lower and upper bounds are also cast to strings,
       and that lexicographical comparisons are made!
 
-      Under the hood, it uses Riak's 'secondary indexes', which are not supported when using `Bitcask` as storage mechanism.
-      (Instead, set it to e.g. Leveldb)
+      Under the hood, it uses Riak's 'secondary indexes', which are only supported when using the
+      'Leveldb' or 'Memory' storage backends.
+
+      Example:
+
+      iex> bob = %User{name: "Bob", id: "1234", age: 38}
+      iex> {:ok, _} = Repo.insert(bob)
+      iex> jose = %User{name: "Jose", id: "1240", age: 30}
+      iex> {:ok, _} = Repo.insert(jose)
+      iex> Repo.riak_find_keys_between(User, "1200", "1300")
+      ["1234", "1240"]
       """
-      def find_keys_between(schema_module, lower_bound, upper_bound) do
+      def riak_find_keys_between(schema_module, lower_bound, upper_bound) do
         {adapter, meta} = Ecto.Repo.Registry.lookup(__MODULE__)
         adapter.find_keys_between(__MODULE__, meta, schema_module, lower_bound, upper_bound)
       end
@@ -265,8 +277,11 @@ defmodule RiakEcto3 do
       type == nil
     end)
     |> Enum.map(fn {key, type, value} ->
-      {:ok, riak_value} = Ecto.Type.adapter_dump(__MODULE__, type, value)
-      {Atom.to_string(key), riak_value}
+      case Ecto.Type.adapter_dump(__MODULE__, type, value) do
+        {:ok, riak_value} ->
+          {Atom.to_string(key), riak_value}
+          _ -> raise "Could not properly dump `#{value}` to Ecto type `#{inspect(type)}`. Please make sure it is cast properly."
+      end
     end)
     |> Enum.reduce(Riak.CRDT.Map.new, fn {key, value}, riak_map ->
       Riak.CRDT.Map.put(riak_map, key, value)
@@ -363,8 +378,8 @@ defmodule RiakEcto3 do
   def find_keys_between(repo, meta, schema_module, lower_bound, upper_bound) do
     source = schema_module.__schema__(:source)
     database = repo.config[:database]
-    IO.inspect({meta.pid, {database, source}, to_string(lower_bound), to_string(upper_bound)})
-    :riakc_pb_socket.get_index(meta.pid, {database, source}, "$key", to_string(lower_bound), to_string(upper_bound))
+    {:ok, {:index_results_v1, results, _, _}} = :riakc_pb_socket.get_index(meta.pid, {database, source}, "$key", to_string(lower_bound), to_string(upper_bound))
+    results
   end
 
 
