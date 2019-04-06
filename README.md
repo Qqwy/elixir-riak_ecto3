@@ -1,24 +1,33 @@
 # RiakEcto3
 
-RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (For Riak KV v 2.0 and upward).
+[![hex.pm version](https://img.shields.io/hexpm/v/riak_ecto3.svg)](https://hex.pm/packages/map_diff)
+[![Build Status](https://travis-ci.org/Qqwy/elixir_riak_ecto3.svg?branch=master)](https://travis-ci.org/Qqwy/elixir_riak_ecto3)
+[![Inline docs](http://inch-ci.org/github/qqwy/elixir_riak_ecto3.svg)](http://inch-ci.org/github/qqwy/elixir_riak_ecto3)
+
+
+RiakEcto3 is an Ecto 3 Adapter for the Riak KV database (v 2.0 and upward), which represents structs as Riak CRDT Data Types.
 
 ## Features
 
 - Structs are serialized as Riak CRDT Data Types.
 - `Repo.get`  and `Repo.insert/update`
-- Support for `Repo.delete`
-- Usage of raw Solr-queries with `Repo.raw_solr_query/2`.
+- `Repo.delete`
+- Executing raw Solr queries
+- Finding a key within a range of keys (which relies on Riak's Secondary Indexes feature).
 - Setting up a Riak bucket type ('database')
 - 'Tearing down' a Riak bucket type ('database'): It will only be flushed because Riak does not support the actual dropping of a bucket or bucket type.
 
+
 ## Planned Features
 
-
-- Support for Secondary Indexes (2i) to allow rudimentary searching functionality.
 - Support for associations
   - and preloading them.
 - Support for the Counter, Set and Flag CRDT datatypes.
 - (Maybe!) a converter for the Ecto query syntax into the Solr query syntax.
+
+## (For now) deliberatly not planned as features
+
+- Support for the rest of Secondary Indexes, because these are deprecated and custom indexes cannot be created for CRDTs.
 
 ## Installation
 
@@ -28,12 +37,17 @@ by adding `riak_ecto3` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:riak_ecto3, "~> 0.1.0"}
+    {:riak_ecto3, "~> 0.5.0"}
   ]
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/riak_ecto3](https://hexdocs.pm/riak_ecto3).
+Documentation can be found at [https://hexdocs.pm/riak_ecto3](https://hexdocs.pm/riak_ecto3).
+
+## Running Tests
+
+The tests expect Riak to be running in localhost at its default port (8087).
+- Some of the features of RiakEcto3 require that searching is turned on, (the `search` setting in `riak.conf`)
+- Some features (The ones that require secondary indexes) require that either the 'leveldb' or 'memory'-backend is used. (The `storage_backend` setting in `riak.conf`)
+- Besides this, there are no restrictions when running the tests.
 

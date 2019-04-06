@@ -4,12 +4,14 @@ defmodule RiakEcto3.MixProject do
   def project do
     [
       app: :riak_ecto3,
-      version: "0.1.0",
+      version: "0.5.0",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       elixirc_paths: elixirc_paths(Mix.env),
       aliases: aliases(),
+      description: description(),
+      package: package(),
     ]
   end
 
@@ -23,11 +25,14 @@ defmodule RiakEcto3.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:earmark, ">= 0.0.0", only: [:dev, :docs]},    # Markdown, dependency of ex_doc
+      {:ex_doc, "~> 0.11", only: [:dev, :docs]}, # Documentation for Hex.pm
+      {:inch_ex, ">= 0.0.0", only: [:docs]},     # Inch CI documentation quality test.
+
       {:ecto, "~> 3.0"},
       {:riak, "~> 1.0"},
-      # {:dep_from_hexpm, "~> 0.3.0"},
-      # {:dep_from_git, git: "https://github.com/elixir-lang/my_dep.git", tag: "0.1.0"},
-      {:progress_bar, "~> 2.0", only: [:test]}
+      {:progress_bar, "~> 2.0"} # Used for progress indicators during mix DB-creation/deletion tasks.
+
     ]
   end
 
@@ -41,4 +46,22 @@ defmodule RiakEcto3.MixProject do
       test: ["ecto.create --quiet", "test", "ecto.drop --quiet"]
     ]
   end
+
+
+  defp description do
+    """
+    Ecto 3 Adapter for the Riak KV database (v 2.0 and upward), representing schemas as CRDTs.
+    """
+  end
+
+  defp package do
+    [# These are the default files included in the package
+      name: :riak_ecto3,
+      files: ["lib", "mix.exs", "README*", "LICENSE"],
+      maintainers: ["Wiebe-Marten Wijnja/Qqwy"],
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/Qqwy/elixir_riak_ecto3/"}
+    ]
+  end
+
 end
