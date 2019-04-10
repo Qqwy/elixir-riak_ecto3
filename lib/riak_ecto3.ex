@@ -118,7 +118,7 @@ defmodule RiakEcto3 do
 
       iex> bob = %User{name: "Bob", id: "42", age: 41}
       iex> {:ok, _} = Repo.insert(bob)
-      iex> :timer.sleep(1000) # It takes 'typically a second' before SOLR is able to see changes.
+      iex> :timer.sleep(2000) # It takes 'typically a second' (so wait for two to be safe) before SOLR is able to see changes.
       iex> {:ok, results} = Repo.riak_raw_solr_query(RiakEcto3Test.Example.User, "age_register:[40 TO 41]")
       iex> results |> Enum.map(fn elem -> elem.resource.() end) |> Enum.any?(fn user -> user.name == "Bob" end)
       true
