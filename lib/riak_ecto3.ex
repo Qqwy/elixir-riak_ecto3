@@ -399,7 +399,8 @@ defmodule RiakEcto3 do
     res
   end
 
-  defp create_search_index(database, hostname, port) do
+  @doc false
+  def create_search_index(database, hostname, port) do
     require Logger
     with database_index = "#{database}_index",
          {:ok, pid} <- Riak.Connection.start_link(String.to_charlist(hostname), port),

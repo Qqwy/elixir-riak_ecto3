@@ -42,10 +42,15 @@ defmodule RiakEcto3.MixProject do
   defp elixirc_paths(_), do: ["lib"]
 
   defp aliases do
-    [
-      # travis: ["test"],
+    test_alias = if System.get_env("CI") do
+      "test"
+    else
       # Ensures database is reset before tests are run
-      test: ["ecto.create --quiet", "test", "ecto.drop --quiet"],
+        ["ecto.create --quiet", "test", "ecto.drop --quiet"]
+    end
+
+    [
+      test: test_alias
     ]
   end
 
