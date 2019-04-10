@@ -6,7 +6,7 @@ defmodule Mix.Tasks.RiakEcto3 do
 
     @impl Mix.Task
     def run([database_name, hostname, port]) do
-      RiakEcto3.create_search_index(database_name, hostname, port)
+      RiakEcto3.create_search_index(database_name, hostname, String.to_integer(port))
     end
   end
 end
