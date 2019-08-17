@@ -1,4 +1,5 @@
 language: elixir
+dist: trusty
 elixir:
   - 1.6.6
   - 1.7.4
